@@ -5,6 +5,7 @@ import RoleSelectionScreen from './features/setup/ScreenB_RoleSelection';
 import LobbyScreen from './features/setup/ScreenD_Lobby';
 import PublicScreen from './features/public/PublicScreen'; 
 import GamePlayScreen from './features/gameplay/GamePlayScreen';
+import AdminScreen from './features/admin/AdminScreen';
 
 function App() {
   return (
@@ -19,6 +20,9 @@ function App() {
 
           {/* Route de l'Écran Public (Spectateur) */}
           <Route path="/public" element={<PublicScreen />} />
+
+          {/* ROUTE ADMIN SÉCURISÉE (par l'URL simple pour l'instant) */}
+          <Route path="/admin" element={<AdminScreen />} />
         </Routes>
       </div>
     </BrowserRouter>

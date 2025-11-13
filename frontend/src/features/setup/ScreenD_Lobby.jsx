@@ -7,7 +7,7 @@ const LobbyScreen = () => {
     const navigate = useNavigate();
     const [players, setPlayers] = useState([]);
     const [isGameReady, setIsGameReady] = useState(false);
-    const userId = supabase.auth.user()?.id; // Récupérer l'ID de l'utilisateur anonyme
+    const { userId } = useAuth(); // Récupérer l'ID de l'utilisateur anonyme
 
     // ------------------------------------
     // I. LOGIQUE EN TEMPS RÉEL (JOUEURS & STATUT DE JEU)

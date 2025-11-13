@@ -15,7 +15,7 @@ const INITIAL_GAME_STATE = {
 const GamePlayScreen = () => {
     const [gameState, setGameState] = useState(INITIAL_GAME_STATE);
     const [message, setMessage] = useState('');
-    const userId = supabase.auth.user()?.id;
+    const { userId, loading } = useAuth();
 
     // Utilisation du chronomètre basé sur le temps de début de la session
     const { timeRemaining, isRunning, stopTimer, resetTimer } = useTimer(
@@ -197,6 +197,8 @@ const GamePlayScreen = () => {
     // III. RENDU DES COMPOSANTS
     // ------------------------------------
 
+    if (loading) return <div>Chargement de l'authentification...</div>;
+    
     if (!userId || gameState.currentSession?.status === 'LOBBY' || gameState.currentSession?.status === 'FINISHED') {
         // Rediriger ou afficher un message si le jeu n'est pas en cours
         return (

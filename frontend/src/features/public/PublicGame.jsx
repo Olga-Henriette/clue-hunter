@@ -1,12 +1,15 @@
-// frontend/src/features/public/PublicGame.jsx (Écrans 5 et 7)
 import React from 'react';
-import PublicScoreboard from './PublicScoreboard'; // À créer
+import PublicScoreboard from './PublicScoreboard'; 
+import useTimer from '../../hooks/useTimer';
 
 const PublicGame = ({ players, currentSession }) => {
     // La logique avancée gérera les transitions Screen 3 (Flou), 5 (Score Notifs), 7 (Jeu)
 
     // Affichage temporaire de la question et du classement (Screen 7 principal)
     
+    // Utiliser le start_time de la session pour le chronomètre
+    const { timeRemaining } = useTimer(currentSession?.start_time);
+
     // Logique pour trouver la question actuelle
     const currentQuestionIndex = currentSession?.current_question_index || 0;
     const totalQuestions = currentSession?.total_questions || 0;
@@ -29,7 +32,7 @@ const PublicGame = ({ players, currentSession }) => {
             {/* Chronomètre (Affichage du temps restant) */}
             {/* Le chronomètre devra être implémenté dans un hook réutilisable */}
             <div className="timer-display">
-                ⏳ Temps Restant : XXs
+                ⏳ Temps Restant : **{timeRemaining}**s {/* Affichage dynamique */}
             </div>
 
         </div>

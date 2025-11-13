@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { supabase, subscribeToTable } from '../../api/supabaseClient';
 import useTimer from '../../hooks/useTimer'; 
 import { PENALTY_AMOUNT } from '../core/scoreLogic'; 
+import { useAuth } from '../../context/AuthContext';
 
 // État initial de la partie
 const INITIAL_GAME_STATE = {
@@ -198,7 +199,7 @@ const GamePlayScreen = () => {
     // ------------------------------------
 
     if (loading) return <div>Chargement de l'authentification...</div>;
-    
+
     if (!userId || gameState.currentSession?.status === 'LOBBY' || gameState.currentSession?.status === 'FINISHED') {
         // Rediriger ou afficher un message si le jeu n'est pas en cours
         return (
@@ -230,8 +231,9 @@ const GamePlayScreen = () => {
             
             {/* 2. Indice Image */}
             <div className="clue-images">
-                {currentQuestion.images_url.map((url, index) => (
-                    // Utiliser le Supabase Storage URL
+                {/* Vérifier si images_url est un tableau avant d'appeler map */}
+                {Array.isArray(currentQuestion.images_url) && currentQuestion.images_url.map((url, index) => (
+                    // La vérification de l'URL est correcte
                     <img key={index} src={url} alt={`Indice ${index + 1}`} style={{ maxWidth: '100px', margin: '5px' }} />
                 ))}
             </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase, subscribeToTable } from '../../api/supabaseClient';
 import { MAX_PLAYERS } from './roles';
@@ -7,8 +7,33 @@ import { useAuth } from '../../context/AuthContext';
 const LobbyScreen = () => {
     const navigate = useNavigate();
     const [players, setPlayers] = useState([]);
-    const [isGameReady, setIsGameReady] = useState(false);
+    const [isGameRunning, setIsGameRunning] = useState(false); 
     const { userId } = useAuth(); // Récupérer l'ID de l'utilisateur anonyme
+
+    // Fonction de vérification du statut de la session et de la navigation
+    const checkGameStatus = useCallback(async () => {
+        // Pour la simplicité, nous prenons toujours la session la plus récente
+        const { data: sessionData, error: sessionError } = await supabase
+            .from('game_sessions')
+            .select('status')
+            .limit(1)
+            .order('created_at', { ascending: false });
+
+        const status = sessionData?.[0]?.status;
+
+        if (sessionError) {
+            console.error("Error fetching game session status:", sessionError);
+            return;
+        }
+
+        if (status === 'IN_PROGRESS') {
+            setIsGameRunning(true);
+            // Redirection vers l'écran de jeu
+            navigate('/game'); 
+        } else {
+            setIsGameRunning(false);
+        }
+    }, [navigate]);
 
     // ------------------------------------
     // I. LOGIQUE EN TEMPS RÉEL (JOUEURS & STATUT DE JEU)
@@ -20,38 +45,35 @@ const LobbyScreen = () => {
         const fetchPlayers = async () => {
             const { data, error } = await supabase
                 .from('players')
-                .select('role_name, is_ready, current_score');
+                .select('id, role_name, is_ready, current_score'); // Ajout de l'ID du joueur pour identification
             
             if (!error && data) {
                 setPlayers(data);
-                // Vérifier si le jeu est prêt à démarrer (ex: 8 joueurs prêts ou admin lance)
-                if (data.length === MAX_PLAYERS && data.every(p => p.is_ready)) {
-                    // Logic: L'admin ou le serveur doit changer le statut de la partie dans 'game_sessions'
-                    // Pour cette étape, nous allons juste écouter la table 'players'
-                    // NOTE: Le lancement réel sera géré par un administrateur sur un écran séparé.
-                    // Pour le test, on pourrait simuler le lancement si 8 joueurs sont prêts.
-                    // setIsGameReady(true); 
-                }
             }
         };
 
-        // Abonnement aux changements dans la table 'players'
+        // 1. Abonnement aux joueurs (pour mettre à jour la liste des participants)
         playersChannel = subscribeToTable('players', (payload) => {
             console.log('Realtime player update:', payload);
-            fetchPlayers(); // Recharger les données pour la simplicité
+            fetchPlayers();
         });
 
-        // Tâches supplémentaires :
-        // 1. S'abonner à 'game_sessions' pour la transition vers '/game'.
+        // 2. Abonnement à la session (pour la transition vers '/game')
+        // Lorsque l'Admin clique sur "Démarrer la Partie", le statut passe à 'IN_PROGRESS'.
+        gameSessionChannel = subscribeToTable('game_sessions', (payload) => {
+            console.log('Realtime session update:', payload);
+            checkGameStatus();
+        });
 
         fetchPlayers();
+        checkGameStatus(); // Vérification initiale
 
         // Nettoyage des abonnements
         return () => {
             if (playersChannel) playersChannel.unsubscribe();
             if (gameSessionChannel) gameSessionChannel.unsubscribe();
         };
-    }, []);
+    }, [checkGameStatus]); // checkGameStatus est une dépendance stabilisée par useCallback
 
     // ------------------------------------
     // II. GESTION DE LA DÉCONNEXION (SCREEN D ACTION)
@@ -65,7 +87,6 @@ const LobbyScreen = () => {
 
         try {
             // 1. Supprimer le profil du joueur dans la table 'players'
-            // Le RLS UPDATE policy permet à l'utilisateur de modifier SES PROPRES données.
             const { error: deleteError } = await supabase
                 .from('players')
                 .delete()
@@ -92,12 +113,20 @@ const LobbyScreen = () => {
     // III. RENDU (SCREEN D)
     // ------------------------------------
     
+    // Si le jeu est lancé, on ne doit pas rendre le Lobby. La redirection est gérée dans useEffect.
+    if (isGameRunning) {
+        // Affiche un message minimal en attendant la redirection
+        return <div>Lancement de la partie...</div>; 
+    }
+
+    // Le Lobby est actif
     return (
         <div className="screen-d-lobby">
             <h2>Lobby d'Attente - {players.length}/{MAX_PLAYERS} Joueurs</h2>
             
             <div className="player-list">
                 {players.map((player) => (
+                    // Utilisation de player.id pour vérifier si c'est le joueur actuel
                     <div 
                         key={player.role_name} 
                         className={`player-item ${player.is_ready ? 'ready' : 'waiting'} ${player.id === userId ? 'me' : ''}`}
@@ -107,16 +136,13 @@ const LobbyScreen = () => {
                 ))}
             </div>
 
-            {isGameReady ? (
-                <p>Le jeu est prêt à commencer ! Attente du lancement de l'administrateur...</p>
-            ) : (
-                <p>En attente des autres joueurs ou du lancement de la partie.</p>
-            )}
+            {/* Le jeu est prêt à être lancé par l'Admin */}
+            <p>En attente du lancement de la partie par l'administrateur.</p>
 
             {/* Bouton de Déconnexion (Seule action possible pour le joueur) */}
             <button 
                 onClick={handleDisconnect} 
-                className="btn-danger" // Classe CSS pour le danger (rouge)
+                className="btn-danger" 
             >
                 Déconnexion
             </button>

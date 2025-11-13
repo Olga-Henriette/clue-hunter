@@ -80,42 +80,36 @@ const AdminScreen = () => {
             .slice(0, TOTAL_QUESTIONS_TO_ASK)
             .map(q => q.id);
 
-        // b. Créer une nouvelle session de jeu
-        const { data: newSession, error: sessionError } = await supabase
-            .from('game_sessions')
-            .insert({
-                status: 'IN_PROGRESS',
-                total_questions: TOTAL_QUESTIONS_TO_ASK,
-                question_order_ids: selectedQuestionIds,
-                current_question_index: 0,
-                start_time: new Date().toISOString(), // Démarre le chrono de la première question
-            })
-            .select()
-            .single();
+        // Liste des ID des joueurs connectés
+        const playerIds = players.map(p => p.id);
 
-        if (sessionError) {
-            alert(`Erreur lors du lancement: ${sessionError.message}`);
+        // b. APPEL RPC SÉCURISÉ pour créer la session et lier les joueurs
+        const { data: session_id, error: rpcError } = await supabase.rpc('start_new_game', {
+            question_ids: selectedQuestionIds,
+            total_questions_count: TOTAL_QUESTIONS_TO_ASK,
+            current_players_ids: playerIds,
+        });
+
+        if (rpcError) {
+            console.error("Erreur RPC Lancement:", rpcError);
+            alert(`Erreur lors du lancement via RPC: ${rpcError.message}`);
             return;
         }
 
-        // c. Lier les joueurs à la nouvelle session (Crucial !)
-        const session_id = newSession.id;
-
-        const { error: playerUpdateError } = await supabase
-            .from('players')
-            .update({
-                last_session_id: session_id,
-                current_score: 0, // Remise à zéro des scores
-            })
-            .in('id', players.map(p => p.id)); // Mettre à jour seulement les joueurs actifs
+        // c. La fonction RPC retourne le nouvel ID de session. Nous devons le recharger.
+        // Recharger toutes les données pour mettre à jour l'interface Admin
+        const { data: newSession } = await supabase
+             .from('game_sessions')
+             .select('*')
+             .eq('id', session_id)
+             .single();
         
-        if (playerUpdateError) {
-            console.error("Erreur mise à jour joueurs:", playerUpdateError);
-            alert("Partie lancée mais erreur dans la mise à jour des joueurs. Vérifiez la console.");
-        }
-
         setCurrentSession(newSession);
-        alert("Partie lancée ! Question 1/5 Démarrée.");
+        
+        alert("Partie lancée via RPC ! Question 1/5 Démarrée.");
+        // Recharger les joueurs pour voir les scores à zéro et le last_session_id mis à jour
+        // NOTE: Le RLS sur game_sessions SELECT reste 'true' pour que l'Admin (et le public) puisse lire.
+        
     };
 
     // 2. Passer à la question suivante (ou terminer)

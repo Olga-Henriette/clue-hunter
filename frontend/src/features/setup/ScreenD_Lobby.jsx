@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase, subscribeToTable } from '../../api/supabaseClient';
 import { MAX_PLAYERS } from './roles';
+import { useAuth } from '../../context/AuthContext';
 
 const LobbyScreen = () => {
     const navigate = useNavigate();

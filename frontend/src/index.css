@@ -283,3 +283,41 @@ button:disabled {
     font-size: 1.3em;
     color: #FFC107;
 }
+
+.letter-pool-display {
+    /* Style du conteneur général */
+    margin-top: 20px;
+    text-align: center;
+}
+
+.available-letters-box {
+    display: flex;
+    flex-direction: column; /* Empile les lignes verticalement */
+    align-items: center;
+    gap: 5px; /* Espace entre les deux lignes */
+}
+
+.letter-line {
+    display: flex;
+    justify-content: center; /* Centre les lettres horizontalement */
+    flex-wrap: nowrap; /* Assure qu'il n'y a pas de retour à la ligne non désiré */
+    max-width: 100%;
+}
+
+.letter-display-chip {
+    /* Style de la case individuelle */
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    width: 30px; /* Taille fixe pour l'affichage de la case */
+    height: 30px;
+    color: rgb(33, 33, 34); /* Texte blanc pour contraster avec le fond sombre */
+    margin: 3px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background-color: #9c9797;
+    font-weight: bold;
+    font-size: 16px;
+    user-select: none; /* Rendre le texte non sélectionnable */
+    box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1);
+}

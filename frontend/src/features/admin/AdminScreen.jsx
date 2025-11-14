@@ -132,36 +132,29 @@ const AdminScreen = () => {
         if (!currentSession || currentSession.status !== 'IN_PROGRESS') return;
 
         const nextIndex = currentSession.current_question_index + 1;
-        let error = null;
+        const totalQuestions = currentSession.total_questions;
         let message = '';
 
-        if (nextIndex >= currentSession.total_questions) {
-            // FIN DE PARTIE
-            ({ error } = await supabase
-                .from('game_sessions')
-                .update({ status: 'FINISHED', current_question_index: nextIndex })
-                .eq('id', currentSession.id));
+        if (nextIndex >= totalQuestions) {
+            // FIN DE PARTIE : Le RPC gère déjà le passage au statut 'FINISHED'
             message = "Partie terminée ! Affichage des résultats.";
-
         } else {
             // QUESTION SUIVANTE
-            ({ error } = await supabase
-                .from('game_sessions')
-                .update({ 
-                    current_question_index: nextIndex,
-                    start_time: new Date().toISOString(), // Démarrer le nouveau chrono
-                })
-                .eq('id', currentSession.id));
-            message = `Passage à la question ${nextIndex + 1}/${currentSession.total_questions}.`;
+            message = `Passage à la question ${nextIndex + 1}/${totalQuestions}.`;
         }
+
+        // Appel du RPC sécurisé pour avancer la session
+        const { error: rpcError } = await supabase.rpc('advance_to_next_question', {
+            session_id: currentSession.id,
+        });
         
-        if (!error) {
+        if (!rpcError) {
             // CRITIQUE : Recharger les données pour mettre à jour l'interface
             await fetchData(); 
             alert(message);
         } else {
-            console.error("Erreur progression:", error);
-            alert(`Erreur lors de la progression: ${error.message}`);
+            console.error("Erreur RPC progression:", rpcError);
+            alert(`Erreur lors de la progression (RPC): ${rpcError.message}. Vérifiez les logs Supabase.`);
         }
     };
 

@@ -315,7 +315,26 @@ const GamePlayScreen = () => {
             setGameState(prevState => ({ ...prevState, isAnswerLocked: true })); 
 
             // 1. Déclencher le SCORING sur le backend (APPEL RPC SÉCURISÉ)
-            // ... (Le code RPC reste le même)
+            const { error: rpcError } = await supabase.rpc('submit_player_answer', {
+                player_uuid: userId,
+                session_uuid: gameState.currentSession.id,
+                action: 'SUBMIT_ANSWER', // Action pour soumettre la réponse finale
+                penalty_count: gameState.penaltyCount, // Envoyer le nombre total de pénalités subies
+                time_remaining: timeRemaining,
+            });
+
+            if (rpcError) {
+                console.error("Erreur RPC de soumission de réponse:", rpcError);
+                setMessage("Erreur lors de la soumission finale.");
+                // Optionnel : Réactiver l'input si l'erreur est critique
+                // setGameState(prevState => ({ ...prevState, isAnswerLocked: false })); 
+                return;
+            }
+            
+            // Afficher le message de succès et le score final
+            const finalScore = 100 - (gameState.penaltyCount * PENALTY_AMOUNT);
+            setMessage(`Réponse correcte ! Score final pour cette question: ${finalScore} points.`);
+            // Le message reste affiché jusqu'à la prochaine question
 
         } else {
             // S'il clique sur valider sans la bonne réponse

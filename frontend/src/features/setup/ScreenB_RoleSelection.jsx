@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase, subscribeToTable } from '../../api/supabaseClient';
 import { ROLES, MAX_PLAYERS } from './roles';
@@ -13,58 +13,53 @@ const RoleSelectionScreen = () => {
   // I. GESTION DU TEMPS RÉEL 
   // ------------------------------------
 
-  // Fonction pour mettre à jour la liste des rôles disponibles en fonction des joueurs connectés
-  const updateAvailableRoles = (currentPlayers) => {
-    const reservedRoles = currentPlayers.map(p => p.role_name);
-    // On filtre les rôles qui n'ont pas encore été pris
-    const newAvailable = ROLES.map(role => ({
-      ...role,
-      isTaken: reservedRoles.includes(role.ROLE_NAME),
-    }));
-    setAvailableRoles(newAvailable);
+  // Fonction pour mettre à jour la liste des rôles disponibles
+  const updateAvailableRoles = useCallback((currentPlayers) => {
+      const reservedRoles = currentPlayers.map(p => p.role_name);
+      const newAvailable = ROLES.map(role => ({
+        ...role,
+        isTaken: reservedRoles.includes(role.ROLE_NAME),
+      }));
+      setAvailableRoles(newAvailable);
 
-    // Vérifier si le jeu est plein pour gérer l'état d'attente
-    if (currentPlayers.length >= MAX_PLAYERS) {
-      // Dans le jeu final, on naviguerait vers un écran "Game Full"
-    }
-  };
+      // Vérifier si le jeu est plein 
+      // if (currentPlayers.length >= MAX_PLAYERS) { } 
+  }, [setAvailableRoles]); // Dépend de setAvailableRoles 
+
+  // Fonction pour charger et mettre à jour l'état (Rendue stable par useCallback)
+  const fetchAndSetRoles = useCallback(async () => {
+      const { data: currentPlayers, error } = await supabase
+          .from('players')
+          .select('role_name, is_ready');
+          
+      if (error) {
+          console.error("Error fetching players:", error.message);
+          return;
+      }
+      updateAvailableRoles(currentPlayers || []);
+  }, [updateAvailableRoles]); // Dépend de updateAvailableRoles
+
 
   useEffect(() => {
-    // S'abonner aux changements dans la table 'players'
-    let playersChannel;
-    
-    const setupRealtime = async () => {
-        // 1. Charger les joueurs existants au montage
-        const { data: currentPlayers, error } = await supabase
-            .from('players')
-            .select('role_name, is_ready');
-        
-        if (error) {
-            console.error("Error fetching initial players:", error.message);
-            return;
-        }
+      let playersChannel;
+      
+      // 1. Chargement initial
+      fetchAndSetRoles();
 
-        updateAvailableRoles(currentPlayers);
+      // 2. S'abonner aux changements pour les mises à jour en temps réel
+      playersChannel = subscribeToTable('players', (payload) => {
+          console.log('SelectRole: Realtime Roles Update');
+          // Rappelle la fonction de chargement et mise à jour lors de tout changement (insertion/suppression)
+          fetchAndSetRoles(); 
+      });
 
-        // 2. S'abonner aux changements pour les mises à jour en temps réel
-        playersChannel = subscribeToTable('players', (payload) => {
-            // Recharger la liste complète pour mettre à jour l'état
-            // C'est moins performant, mais plus sûr et facile pour une première version RLS
-            supabase.from('players').select('role_name, is_ready').then(({ data }) => {
-                updateAvailableRoles(data || []);
-            });
-        });
-    };
-
-    setupRealtime();
-
-    // Nettoyage de l'abonnement
-    return () => {
-      if (playersChannel) {
-        playersChannel.unsubscribe();
-      }
-    };
-  }, []);
+      // Nettoyage de l'abonnement
+      return () => {
+          if (playersChannel) {
+              playersChannel.unsubscribe();
+          }
+      };
+  }, [fetchAndSetRoles]); // Dépend de la fonction useCallback fetchAndSetRoles
 
   // ------------------------------------
   // II. AUTHENTIFICATION ET INSERTION (SCREEN C LOGIC)

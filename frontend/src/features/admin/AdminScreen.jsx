@@ -1,14 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../../api/supabaseClient';
+import { supabase, subscribeToTable } from '../../api/supabaseClient';
 import { MAX_PLAYERS } from '../setup/roles';
 
-// Utilité pour mélanger un tableau (utilisé pour l'ordre des questions)
+// Utilité pour mélanger un tableau
 const shuffleArray = (array) => {
     let currentIndex = array.length, randomIndex;
     while (currentIndex !== 0) {
         randomIndex = Math.floor(Math.random() * currentIndex);
         currentIndex--;
-        // Utilisation de la syntaxe de décomposition pour échanger les éléments
         [array[currentIndex], array[randomIndex]] = [
             array[randomIndex], array[currentIndex]];
     }
@@ -23,9 +22,7 @@ const AdminScreen = () => {
     const [allQuestions, setAllQuestions] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    // ------------------------------------
-    // I. CHARGEMENT INITIAL DES DONNÉES (Rendu réutilisable avec useCallback)
-    // ------------------------------------
+    // Fonction de chargement de données (stabilisée par useCallback)
     const fetchData = useCallback(async () => {
         setIsLoading(true);
         
@@ -58,11 +55,32 @@ const AdminScreen = () => {
         setAllQuestions(questionsData || []);
         
         setIsLoading(false);
-    }, []); // fetchData n'a pas de dépendances externes et ne se recrée que si les dépendances changent (ici jamais)
+    }, []);
 
     useEffect(() => {
-        fetchData();
-    }, [fetchData]); // Dépend de fetchData, mais fetchData est stabilisé par useCallback
+        let playersChannel;
+        let gameSessionChannel;
+        
+        // 1. Abonnement aux joueurs (pour la liste du lobby dans l'admin)
+        playersChannel = subscribeToTable('players', (payload) => {
+            console.log('Admin: Realtime player update');
+            fetchData();
+        });
+
+        // 2. Abonnement à la session (pour le statut et la question actuelle)
+        gameSessionChannel = subscribeToTable('game_sessions', (payload) => {
+            console.log('Admin: Realtime session update');
+            fetchData();
+        });
+
+        fetchData(); // Premier chargement
+
+        // Nettoyage
+        return () => {
+            if (playersChannel) playersChannel.unsubscribe();
+            if (gameSessionChannel) gameSessionChannel.unsubscribe();
+        };
+    }, [fetchData]);
 
     // ------------------------------------
     // II. ACTIONS D'ADMINISTRATION
@@ -70,6 +88,12 @@ const AdminScreen = () => {
     
     // 1. Initialiser/Démarrer la partie
     const handleStartGame = async () => {
+        // VÉRIFICATION D'ÉTAT SIMPLE
+        if (currentSession && currentSession.status === 'IN_PROGRESS') {
+             alert("La partie est déjà en cours.");
+             return;
+        }
+
         if (allQuestions.length < TOTAL_QUESTIONS_TO_ASK) {
             alert(`Erreur: Seulement ${allQuestions.length} questions disponibles. Ajoutez-en plus.`);
             return;
@@ -79,18 +103,14 @@ const AdminScreen = () => {
             alert("Erreur: Aucun joueur n'est inscrit dans le lobby.");
             return;
         }
-
-        // a. Sélectionner aléatoirement 5 questions
+        
         const shuffledQuestions = shuffleArray([...allQuestions]);
         const selectedQuestionIds = shuffledQuestions
             .slice(0, TOTAL_QUESTIONS_TO_ASK)
             .map(q => q.id);
-
-        // Liste des ID des joueurs connectés
         const playerIds = players.map(p => p.id);
 
-        // b. APPEL RPC SÉCURISÉ pour créer la session et lier les joueurs
-        const { data: session_id, error: rpcError } = await supabase.rpc('start_new_game', {
+        const { error: rpcError } = await supabase.rpc('start_new_game', {
             question_ids: selectedQuestionIds,
             total_questions_count: TOTAL_QUESTIONS_TO_ASK,
             current_players_ids: playerIds,
@@ -101,10 +121,9 @@ const AdminScreen = () => {
             alert(`Erreur lors du lancement via RPC: ${rpcError.message}`);
             return;
         }
-
-        // c. Recharger toutes les données pour mettre à jour l'interface Admin
-        await fetchData();
         
+        // CRITIQUE : Recharger les données pour mettre à jour l'interface
+        await fetchData(); 
         alert("Partie lancée via RPC ! Question 1/5 Démarrée.");
     };
 
@@ -137,7 +156,8 @@ const AdminScreen = () => {
         }
         
         if (!error) {
-            await fetchData(); // Forcer le rechargement
+            // CRITIQUE : Recharger les données pour mettre à jour l'interface
+            await fetchData(); 
             alert(message);
         } else {
             console.error("Erreur progression:", error);
@@ -145,7 +165,7 @@ const AdminScreen = () => {
         }
     };
 
-    // 3. Arrêter et Réinitialiser le jeu 
+    // 3. Arrêter et Réinitialiser le jeu
     const handleResetGame = async () => {
         if (!confirm("Êtes-vous sûr de vouloir ARRÊTER la partie et RÉINITIALISER TOUS les profils joueurs ?")) return;
 
@@ -157,8 +177,14 @@ const AdminScreen = () => {
             return;
         }
 
+        // Si l'appel RPC réussit (le serveur s'est occupé de tout)
         alert("Jeu et profils joueurs réinitialisés. Le lobby est vide.");
-        await fetchData(); // <Forcer le rechargement
+        
+        // Recharger les données pour mettre à jour l'Admin
+        await fetchData(); 
+        
+        // Optionnel : s'assurer que la session est bien effacée de l'état local
+        setCurrentSession(null); 
     };
 
 
@@ -204,7 +230,7 @@ const AdminScreen = () => {
                                 : "Terminer la Partie"}
                         </button>
                         <button 
-                            onClick={handleResetGame} // Utilise la fonction RPC de réinitialisation
+                            onClick={handleResetGame}
                             className="btn-danger"
                             style={{ marginLeft: '10px' }}
                         >

@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 
 // Récupérer les clés depuis les variables d'environnement dans Vite (définies dans .env.local)
@@ -15,19 +14,32 @@ if (!supabaseUrl || !supabaseAnonKey) {
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 /**
+ * Fonction pour se désabonner de tous les canaux actifs.
+ */
+export const unsubscribeAllChannels = () => {
+    const activeChannels = supabase.getChannels();
+    activeChannels.forEach(channel => {
+        // Enlever l'écoute et désabonner
+        channel.unsubscribe(); 
+    });
+    console.log(`Supabase: Désabonné de ${activeChannels.length} canaux.`);
+}
+
+/**
  * Fonction réutilisable pour s'abonner aux événements temps réel d'une table.
  * @param {string} table - Nom de la table à écouter (ex: 'players', 'game_sessions').
  * @param {function} callback - Fonction appelée lors de la réception d'un événement.
  */
 export const subscribeToTable = (table, callback) => {
-    // S'abonner à toutes les modifications (*), toutes les colonnes (*)
+    // Rendre le nom du canal unique pour garantir qu'un nouveau canal est toujours créé
+    const uniqueChannelName = `${table}_channel_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
     const channel = supabase
-        .channel(`${table}_channel`)
+        .channel(uniqueChannelName) // <-- Utilisation d'un nom unique
         .on(
             'postgres_changes',
             { event: '*', schema: 'public', table: table },
             (payload) => {
-                // On passe la charge utile (payload) à la fonction de rappel
                 callback(payload);
             }
         )

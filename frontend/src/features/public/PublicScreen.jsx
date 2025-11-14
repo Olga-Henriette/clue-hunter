@@ -77,7 +77,13 @@ const PublicScreen = () => {
 
     switch (gameStatus) {
         case 'LOADING':
+            return <div>Chargement de la partie publique...</div>;
         case 'NO_SESSION':
+            // Si pas de session, mais des joueurs sont là, on affiche le PublicLobby (Screen 2)
+            if (players.length > 0) {
+                 return <PublicLobby {...commonProps} />; // Affiche Lobby Public
+            }
+            // Sinon, l'écran d'attente initial (Screen 1)
             return <div>En attente du lancement d'une nouvelle partie...</div>;
 
         case 'LOBBY': // Screen 2

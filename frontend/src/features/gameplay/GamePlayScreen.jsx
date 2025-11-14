@@ -3,6 +3,7 @@ import { supabase, subscribeToTable } from '../../api/supabaseClient';
 import useTimer from '../../hooks/useTimer'; 
 import { PENALTY_AMOUNT } from '../core/scoreLogic'; 
 import { useAuth } from '../../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 // État initial de la partie
 const INITIAL_GAME_STATE = {
@@ -17,6 +18,7 @@ const GamePlayScreen = () => {
     const [gameState, setGameState] = useState(INITIAL_GAME_STATE);
     const [message, setMessage] = useState('');
     const { userId, loading } = useAuth();
+    const navigate = useNavigate();
 
     // Utilisation du chronomètre basé sur le temps de début de la session
     const { timeRemaining, isRunning, stopTimer, resetTimer } = useTimer(
@@ -52,6 +54,20 @@ const GamePlayScreen = () => {
     const fetchGameUpdates = useCallback(async () => {
         if (!userId) return;
 
+        // Vérifier si le joueur existe (si l'Admin l'a réinitialisé)
+        const { data: playerProfile, error: playerError } = await supabase
+            .from('players')
+            .select('id')
+            .eq('id', userId)
+            .single();
+
+        if (playerError || !playerProfile) {
+            // Le profil a été supprimé par l'Admin -> Redirection forcée
+            console.log("Profil supprimé, redirection vers le choix de rôle.");
+            navigate('/select-role'); // <-- Naviguer directement vers la sélection de rôle
+            return;
+        }
+
         // 1. Récupérer la session active
         const { data: sessionData } = await supabase
             .from('game_sessions')
@@ -86,7 +102,7 @@ const GamePlayScreen = () => {
             };
         });
         
-    }, [fetchCurrentQuestion, userId]);
+    }, [fetchCurrentQuestion, userId, navigate]);
 
     useEffect(() => {
         fetchGameUpdates();

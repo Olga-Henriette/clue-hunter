@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { supabase, subscribeToTable } from '../../api/supabaseClient';
 import { MAX_PLAYERS } from './roles';
 import { useAuth } from '../../context/AuthContext';
-import CountdownScreen from '../../components/CountdownScreen'; 
+import CountdownScreen from '../../views/shared/CountdownScreen'; 
+import { ROLE_CONFIG, getRoleDisplayName, getRoleImage } from '../../utils/roleConfig';
+import LOGOUT_ICON from '../../assets/logout.png';
 
 // Fonction utilitaire shuffleArray (à définir à l'extérieur de LobbyScreen ou à l'importer)
 const shuffleArray = (array) => {
@@ -19,6 +21,7 @@ const shuffleArray = (array) => {
 
 const LobbyScreen = () => {
     const navigate = useNavigate();
+    const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [players, setPlayers] = useState([]);
     const [isGameRunning, setIsGameRunning] = useState(false);
     const [showCountdown, setShowCountdown] = useState(false); // État pour le compte à rebours
@@ -167,47 +170,51 @@ const LobbyScreen = () => {
         handleLaunchGame();
     };
 
-    // Logique de Déconnexion handleDisconnect inchangée
 
-    const handleDisconnect = async () => {
-        if (!userId) {
-            navigate('/');
-            return;
-        }
+    // Fonction qui lance la déconnexion APRÈS la confirmation
+    const handleConfirmDisconnect = async () => {
+    setShowConfirmModal(false); // Ferme le modal immédiatement
+    if (!userId) {
+        navigate('/');
+        return;
+    }
 
-        // CONFIRMATION OUI/NON
-        const confirmation = window.confirm("Êtes-vous sûr de vouloir vous déconnecter ? Votre rôle sera libéré pour un autre joueur.");
-        if (!confirmation) {
-            return;
-        }
+    try {
+        // 1. Supprimer le profil du joueur dans la table 'players'
+        const { error: deleteError } = await supabase
+            .from('players')
+            .delete()
+            .eq('id', userId);
 
-        try {
-            // 1. Supprimer le profil du joueur dans la table 'players'
-            const { error: deleteError } = await supabase
-                .from('players')
-                .delete()
-                .eq('id', userId);
-            
-            if (deleteError) throw deleteError;
-            
-            // 2. Déconnecter l'utilisateur anonyme de Supabase Auth
-            await supabase.auth.signOut();
+        if (deleteError) throw deleteError;
 
-            // 3. Rediriger vers l'écran de rôl
-            alert("Déconnexion réussie.Votre rôle est libéré.");
-            navigate('/select-role');
+        // 2. Déconnecter l'utilisateur anonyme de Supabase Auth
+        await supabase.auth.signOut();
 
-        } catch (error) {
-            console.error("Erreur lors de la déconnexion ou de la suppression du profil:", error.message);
-            alert("Erreur lors de la déconnexion. Veuillez réessayer.");
-        }
-    };
+        // 3. Rediriger vers l'écran de rôle
+        alert("Déconnexion réussie. Votre rôle est libéré.");
+        navigate('/select-role');
+
+    } catch (error) {
+        console.error("Erreur lors de la déconnexion ou de la suppression du profil:", error.message);
+        alert("Erreur lors de la déconnexion. Veuillez réessayer.");
+    }
+};
+
+// Fonction appelée par le bouton (ouvre le modal)
+const handleDisconnectClick = () => {
+    setShowConfirmModal(true); 
+};
 
 
     // ------------------------------------
     // III. RENDU (SCREEN D)
     // ------------------------------------
     
+    const myPlayer = players.find(player => player.id === userId);
+    const opponents = players.filter(player => player.id !== userId);
+    const allReady = players.length === MAX_PLAYERS && players.every(p => p.is_ready);
+
     // Afficher le compte à rebours en priorité si nécessaire
     if (showCountdown) {
         return <CountdownScreen initialCount={3} onCountdownEnd={onCountdownEnd} />;
@@ -219,37 +226,118 @@ const LobbyScreen = () => {
     
     // Rendu du Lobby
     return (
-        <div className="screen-d-lobby">
-            <h2>Lobby d'Attente - {players.length}/{MAX_PLAYERS} Joueurs</h2>
+        <div className="lobby-container fullscreen"> 
             
-            <div className="player-list">
-                {/* NOTE: Pour avoir l'animation demandée "premier sera centré et décale", 
-                il faudrait revoir le CSS global et utiliser un composant d'animation React avancé 
-                (comme framer-motion), ce qui est au-delà d'un simple CSS. 
-                Pour l'instant, on utilise le style de base fourni dans index.css. */}
-                {players.map((player) => (
-                    <div 
-                        key={player.id} 
-                        className={`player-item ${player.is_ready ? 'ready' : 'waiting'} ${player.id === userId ? 'me' : ''}`}
-                    >
-                        {player.role_name} {player.is_ready ? '✅' : '⏳'}
-                    </div>
-                ))}
-            </div>
-
-            {players.length < MAX_PLAYERS ? (
-                 <p>En attente de **{MAX_PLAYERS - players.length}** joueur(s) supplémentaire(s).</p>
-            ) : (
-                <p>Jeu prêt! Lancement automatique dans quelques secondes...</p>
-            )}
-
-            {/* Bouton de Déconnexion */}
+            {/* Icône de Déconnexion en Haut à Droite (Positionnement CSS) */}
             <button 
-                onClick={handleDisconnect} 
-                className="btn-danger" 
+                onClick={handleDisconnectClick} 
+                className="btn-icon-disconnect" 
+                title="Déconnexion (Annuler le rôle)"
             >
-                Déconnexion (Annuler le rôle)
+                 <img src={LOGOUT_ICON} alt="Déconnexion" className="disconnect-icon" />
             </button>
+            
+            <div className="lobby-content-grid">
+                
+                {/* 1. Colonne Gauche: Adversaires (Verticalement) */}
+                <div className="opponents-list-column">
+                    <h3 className="column-title-opponents">Adversaires ({opponents.length} / {MAX_PLAYERS - 1})</h3>
+                    <div className="opponents-list">
+                        {/* Boucle pour les 7 slots adverses */}
+                        {Array(MAX_PLAYERS - 1).fill(null).map((_, index) => {
+                            const player = opponents[index];
+                            const isSlotTaken = !!player;
+                            
+                            // Affichage pour un joueur présent
+                            if (isSlotTaken) {
+                                const displayName = getRoleDisplayName(player.role_name);
+                                const roleImage = getRoleImage(player.role_name);
+                                
+                                return (
+                                    <div 
+                                        key={player.id} 
+                                        className={`opponent-item active ${player.is_ready ? 'ready' : 'waiting'}`}
+                                    >
+                                        <img src={roleImage} alt={displayName} className="opponent-logo" />
+                                        <div className="opponent-details">
+                                            <span className="opponent-role-name">{displayName}</span>
+                                            <span className="opponent-status">{player.is_ready ? 'PRÊT' : 'ATTENTE'}</span>
+                                        </div>
+                                    </div>
+                                );
+                            }
+
+                            // Affichage pour un slot libre
+                            return (
+                                <div key={`slot-${index}`} className="opponent-item slot-empty">
+                                    <div className="opponent-logo empty">?</div>
+                                    <div className="opponent-details">
+                                        <span className="opponent-role-name">Emplacement Libre</span>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* 2. Colonne Droite: Joueur Actuel (Grand et Centré) */}
+                <div className="my-player-column">
+                    {myPlayer ? (
+                        <div className="my-player-card">
+                            <img 
+                                src={getRoleImage(myPlayer.role_name)} 
+                                alt={getRoleDisplayName(myPlayer.role_name)} 
+                                className="my-player-logo-large"
+                            />
+                            <p className="my-player-role-display">
+                                {getRoleDisplayName(myPlayer.role_name).toUpperCase()}
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="my-player-card missing">
+                            <p>Profil introuvable. Veuillez vous reconnecter.</p>
+                        </div>
+                    )}
+
+                    {/* 3. Loading Bar en Bas (Attente) */}
+                    <div className="waiting-indicator-bottom">
+                        {allReady ? (
+                            <div className="full-message">
+                                LANCEMENT AUTOMATIQUE DANS QUELQUES SECONDES...
+                            </div>
+                        ) : (
+                            <div className="loading-status">
+                                <div className="waiting-spinner"></div>
+                                <p>En attente de {MAX_PLAYERS - players.length} joueur(s) supplémentaire(s)...</p>
+                                <div className="progress-bar-container">
+                                    {/* Largeur de la barre de progression basée sur le pourcentage de joueurs */}
+                                    <div 
+                                        className="progress-bar" 
+                                        style={{ width: `${(players.length / MAX_PLAYERS) * 100}%` }}
+                                    ></div>
+                                </div>
+                            </div>
+                        )}
+
+                    </div>
+
+                </div>
+
+            </div> 
+                {showConfirmModal && (
+                    <div className="validation-modal"> {/* Réutilisation de la classe de Screen B */}
+                        <div className="modal-content lobby-confirm-modal"> {/* Nouvelle classe pour le contenu spécifique */}
+                            <p>
+                                Êtes-vous sûr de vouloir vous déconnecter ?<br/>
+                            </p>
+                            <div className="modal-actions">
+                                {/* Utilisation de handleConfirmDisconnect et handleCancel */}
+                                <button onClick={handleConfirmDisconnect} className="btn-yes">OUI</button>
+                                <button onClick={() => setShowConfirmModal(false)} className="btn-no">NON</button>
+                            </div>
+                        </div>
+                    </div>
+                )}           
         </div>
     );
 };

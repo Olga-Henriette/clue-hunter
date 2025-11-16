@@ -1,0 +1,62 @@
+.correction-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100vw;
+    height: 100vh;
+    background-color: #282c34; /* Fond sombre pour contraste */
+    color: white;
+    text-align: center;
+}
+
+.correction-screen .header {
+    margin-bottom: 30px;
+}
+
+.correction-screen .game-logo {
+    width: 80px;
+    height: auto;
+    margin-bottom: 10px;
+}
+
+.correction-screen .answer-box.correction-mode {
+    display: flex;
+    justify-content: center;
+    margin: 40px 0;
+}
+
+.correction-screen .answer-slot {
+    /* Utiliser les mêmes styles que GamePlayScreen, mais ajouter une transition */
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    width: 50px;
+    height: 50px;
+    margin: 0 5px;
+    border: 3px solid #61dafb;
+    font-size: 24px;
+    font-weight: bold;
+    background-color: #333;
+    color: #f0f0f0;
+    transition: background-color 0.1s ease-in, color 0.1s ease-in;
+}
+
+.correction-screen .answer-slot.revealed {
+    background-color: #4CAF50; /* Vert lors de la révélation */
+    color: white;
+}
+
+/* Styles pour Letter Pool (réutilisation) */
+.letter-pool-display {
+    margin-top: 20px;
+}
+
+.letter-display-chip {
+    /* Assurez-vous d'avoir les styles pour les chips du letter pool ici */
+    display: inline-block;
+    padding: 5px 10px;
+    margin: 3px;
+    border: 1px solid #aaa;
+    border-radius: 4px;
+}

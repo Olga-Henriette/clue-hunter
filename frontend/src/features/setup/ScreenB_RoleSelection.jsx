@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase, subscribeToTable } from '../../api/supabaseClient';
 import { ROLES, MAX_PLAYERS } from './roles';
+import GAME_LOGO from '../../utils/roleConfig'; 
+
 
 const RoleSelectionScreen = () => {
   const navigate = useNavigate();
@@ -113,6 +115,11 @@ const RoleSelectionScreen = () => {
       alert(`Une erreur critique est survenue: ${error.message}`);
     }
   };
+
+  const handleCancel = () => {
+    setModalOpen(false);
+    setSelectedRole(null);
+  };
   
   // ------------------------------------
   // III. RENDU DES ÉCRANS B et C
@@ -120,7 +127,11 @@ const RoleSelectionScreen = () => {
   
   return (
     <div className="screen-b-selection">
-      <h2>Sélectionnez votre Rôle</h2>
+      <header className="role-selection-header">
+        <img src={GAME_LOGO} alt="Logo du jeu" className="game-logo-medium" />
+        <h2>Chasseur d'Indice</h2>
+      </header>
+
       <div className="role-grid">
         {availableRoles.map((role) => (
           <button

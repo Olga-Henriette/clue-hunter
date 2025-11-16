@@ -1,8 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../api/supabaseClient';
 
-const AuthContext = createContext();
-
+export const AuthContext = createContext();
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
@@ -30,12 +29,26 @@ export const AuthProvider = ({ children }) => {
         };
     }, []);
 
+    const loginAnon = async () => {
+        setLoading(true);
+        const { data, error } = await supabase.auth.signInAnonymously();
+
+        if (error) {
+            console.error("Erreur de connexion anonyme:", error);
+            setLoading(false);
+            return null;
+        }
+
+        // L'état `user` sera mis à jour par l'écouteur `onAuthStateChange`
+        return data.user;
+    };
+
     const value = {
         user,
         userId: user?.id,
         loading,
         isAuthenticated: !!user,
-        // Exposer les fonctions d'auth si besoin, mais nous gérons sign-in dans Screen B
+        loginAnon, 
     };
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

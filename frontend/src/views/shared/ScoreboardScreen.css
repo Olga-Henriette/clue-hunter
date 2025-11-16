@@ -1,0 +1,137 @@
+.scoreboard-screen {
+    /* Utiliser le même fond que CorrectionScreen pour la cohérence */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-around; /* Pour mieux répartir le contenu */
+    width: 100vw;
+    height: 100vh;
+    background-color: #282c34;
+    color: white;
+    text-align: center;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.scoreboard-screen h1 {
+    color: #ffd700; /* Or */
+    margin-bottom: 10px;
+}
+
+.winner-display {
+    margin: 20px 0;
+    padding: 20px;
+    border: 2px solid #ffd700;
+    border-radius: 10px;
+    background-color: #3a3f47;
+}
+
+.winner-logo {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    border: 5px solid #ffd700;
+    margin-bottom: 10px;
+}
+
+/* Tableau de Classement */
+.ranking-table {
+    width: 80%;
+    max-width: 700px;
+    margin: 30px auto;
+}
+
+.ranking-table table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: #3a3f47;
+    color: white;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.ranking-table th, .ranking-table td {
+    padding: 15px;
+    text-align: left;
+    border-bottom: 1px solid #4f545c;
+}
+
+.ranking-table th {
+    background-color: #1e2125;
+}
+
+.ranking-table .first-place-row {
+    background-color: #4CAF50; /* Vert pour le premier */
+    font-weight: bold;
+}
+
+.player-role-cell {
+    display: flex;
+    align-items: center;
+}
+
+/* Barre de Progression */
+.progress-bar-section {
+    width: 80%;
+    max-width: 700px;
+    margin-top: 20px;
+}
+
+.progress-bar-container {
+    width: 100%;
+    background-color: #555;
+    border-radius: 5px;
+    margin: 10px 0;
+    height: 25px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    height: 100%;
+    background-color: #61dafb; /* Couleur React */
+    text-align: center;
+    line-height: 25px;
+    color: #282c34;
+    transition: width 0.5s ease-in-out;
+}
+
+/* ScoreboardScreen.css */
+
+.analytics-section {
+    display: flex;
+    justify-content: space-between;
+    width: 90%;
+    max-width: 1100px;
+    margin: 30px auto;
+}
+
+.ranking-table {
+    width: 45%; /* Laisser de la place pour le graphique */
+}
+
+.score-evolution-chart {
+    width: 50%;
+    padding: 20px;
+    background-color: #3a3f47;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.score-evolution-chart h3 {
+    margin-top: 0;
+    color: #61dafb;
+}
+
+.chart-container {
+    width: 100%;
+    height: 300px; /* Hauteur fixe pour la visibilité */
+    background-color: #282c34;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+}
+
+.placeholder-chart p {
+    color: #aaa;
+}

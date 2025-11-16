@@ -1,5 +1,5 @@
 import React from 'react';
-import PublicScoreboard from './PublicScoreboard';
+import PublicScoreboard from './CorrectionScreen';
 
 const PublicResults = ({ players }) => {
     // Les joueurs sont déjà triés par score dans PublicScreen.jsx
